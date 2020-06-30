@@ -1,3 +1,6 @@
 # dataset
 **/*.zip
-&&/data
+**/data
+
+# DS Store
+**/.DS_Store
