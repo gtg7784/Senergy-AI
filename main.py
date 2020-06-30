@@ -25,9 +25,11 @@ def preProcessing(dataset):
 
   dataset = dataset.dropna()
 
+  Enough = dataset.pop('Enough')
   phoneTime = dataset.pop('PhoneTime')
   phoneReach = dataset.pop('PhoneReach')
   Breakfast = dataset.pop('Breakfast')
+  dataset['Enough'] = Enough == 'Yes'
   dataset['PhoneTime'] = phoneTime == 'Yes'
   dataset['phoneReach'] = phoneReach == 'Yes'
   dataset['Breakfast'] = Breakfast == 'Yes'
@@ -35,9 +37,26 @@ def preProcessing(dataset):
   return dataset
   
 def model():
-  print('a')
+  model = keras.Sequential([
+    layers.Dense(64, activation='leaky_relu', input_shape=[len(train_dataset.keys())]),
+    layers.Dense(64, activation='relu'),
+    layers.Dense(1)
+  ])
+
+  optimizer = keras.optimizers.RMSprop(0.001)
+
+  model.compile(loss='mse',
+                optimizer=optimizer,
+                metrics=['mae', 'mse'])
+                
+  return model
 
 if __name__ == "__main__":
   data = pd.read_csv('./data/SleepStudyData.csv')
   
   dataset = preProcessing(data)
+
+  train_dataset = dataset.sample(frac=0.8,random_state=0)
+  test_dataset = dataset.drop(train_dataset.index)
+
+  sns.pairplot(train_dataset[["Hours", "PhoneReach", "PhoneTime", "Tired"]], diag_kind="kde")
