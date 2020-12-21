@@ -12,6 +12,10 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.layers import LeakyReLU
 
+import xgboost
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import explained_variance_score
+
 pd.options.mode.chained_assignment = None
 EPOCHS = 1000
 
@@ -45,22 +49,6 @@ def pre_processing(dataset):
 # min max normalization
 def norm(x):
   return (x - train_stats['mean']) / train_stats['std']
-  
-def model():
-  model = keras.Sequential()
-  model.add(layers.Dense(64, input_shape=[len(train_dataset.keys())]))
-  model.add(LeakyReLU(alpha=0.1))
-  model.add(layers.Dense(64))
-  model.add(LeakyReLU(alpha=0.1))
-  model.add(layers.Dense(1))
-
-  optimizer = keras.optimizers.RMSprop(0.001)
-
-  model.compile(loss='mse',
-                optimizer=optimizer,
-                metrics=['mae', 'mse'])
-                
-  return model
 
 # Visualization with plt
 def plot_history(history):
@@ -103,7 +91,7 @@ if __name__ == "__main__":
   test_dataset = dataset.drop(train_dataset.index)
 
   # Visualization
-  # sns.pairplot(train_dataset[["Hours", "PhoneReach", "PhoneTime", "Tired"]], diag_kind="kde")
+  sns.pairplot(train_dataset[["Hours", "PhoneReach", "PhoneTime", "Tired"]], diag_kind="kde")
 
   # Hours statistics
   train_stats = train_dataset.describe()
@@ -114,20 +102,22 @@ if __name__ == "__main__":
   train_labels = train_dataset.pop('Tired')
   test_labels = test_dataset.pop('Tired')
 
-  model = model()
-  # check the model summary
-  model.summary()
+  model = xgboost.XGBRegressor(
+    n_estimators=100,
+    learning_rate=0.08,
+    gamma=0,
+    subsample=0.75,
+    colsample_bytree=1,
+    max_depth=7)
 
   # patience 매개변수는 성능 향상을 체크할 에포크 횟수입니다
   early_stop = keras.callbacks.EarlyStopping(monitor='val_loss', patience=10)
 
-  example_batch =  convert_nparray(train_dataset[:10])
-  example_result = model.predict(example_batch)
-  print(example_result)
-
   history = model.fit(
-    convert_nparray(train_dataset), train_labels,
-    epochs=EPOCHS, validation_split = 0.2, verbose=0,
+    convert_nparray(train_dataset),
+    train_labels,
+    validation_split=0.2,
+    verbose=0,
     callbacks=[early_stop])
 
   hist = pd.DataFrame(history.history)
@@ -135,6 +125,10 @@ if __name__ == "__main__":
   print(hist.tail())
 
   plot_history(history)
+
+  example_batch =  convert_nparray(train_dataset[:10])
+  example_result = model.predict(example_batch)
+  print(example_result)
 
   loss, mae, mse = model.evaluate(convert_nparray(test_dataset), test_labels, verbose=2)
 
